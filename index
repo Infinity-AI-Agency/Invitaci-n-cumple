@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invitación Mágica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --violet-deep:#231038;
+    --violet:#6d28d9;
+    --magenta:#e8419b;
+    --teal:#1fb6ac;
+    --gold:#f7c948;
+    --paper:#fdf6ff;
+    --ink:#2a1440;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html{ scroll-behavior:smooth; }
+
+  body{
+    margin:0;
+    min-height:100%;
+    background:
+      radial-gradient(circle at 20% 10%, rgba(232,65,155,0.30), transparent 55%),
+      radial-gradient(circle at 85% 30%, rgba(31,182,172,0.25), transparent 50%),
+      radial-gradient(circle at 30% 85%, rgba(109,40,217,0.30), transparent 55%),
+      linear-gradient(180deg, var(--violet-deep), #150a24 60%, #0f0719);
+    font-family:'Poppins', sans-serif;
+    color:var(--paper);
+    overflow-x:hidden;
+  }
+  body.locked{ overflow:hidden; height:100vh; }
+
+  /* ============ SOBRE (pantalla inicial) ============ */
+  .envelope-screen{
+    position:fixed;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+    background:transparent;
+    transition:opacity .6s ease;
+  }
+  .envelope-screen.fade-out{
+    opacity:0;
+    pointer-events:none;
+  }
+
+  .stars{ position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+  .star{
+    position:absolute;
+    color:var(--gold);
+    opacity:0.85;
+    filter:drop-shadow(0 0 6px rgba(247,201,72,0.7));
+    animation:twinkle 2.6s ease-in-out infinite;
+  }
+  .star.pink{ color:var(--magenta); filter:drop-shadow(0 0 6px rgba(232,65,155,0.7)); }
+  .star.teal{ color:var(--teal); filter:drop-shadow(0 0 6px rgba(31,182,172,0.7)); }
+  @keyframes twinkle{
+    0%,100%{ transform:scale(0.85) rotate(0deg); opacity:0.5; }
+    50%{ transform:scale(1.15) rotate(12deg); opacity:1; }
+  }
+
+  .envelope-wrap{
+    position:relative;
+    width:min(78vw, 320px);
+    aspect-ratio: 1.42 / 1;
+    cursor:pointer;
+    transition: transform .5s ease, opacity .6s ease;
+    z-index:5;
+  }
+  .envelope-wrap.opened{
+    transform: scale(0.6) translateY(40px);
+    opacity:0;
+    pointer-events:none;
+  }
+
+  .tap-hint{
+    position:absolute;
+    bottom:-46px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:13px;
+    letter-spacing:.03em;
+    color:#e7d9fb;
+    white-space:nowrap;
+    animation:pulseHint 1.8s ease-in-out infinite;
+  }
+  @keyframes pulseHint{ 0%,100%{opacity:.55;} 50%{opacity:1;} }
+
+  .envelope{
+    position:absolute; inset:0; border-radius:10px;
+    background: linear-gradient(135deg, #8b3fd1, var(--violet) 55%, #4c1d95);
+    box-shadow: 0 18px 40px rgba(0,0,0,0.45), inset 0 0 0 2px rgba(255,255,255,0.15);
+    overflow:hidden;
+  }
+  .envelope::before{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      linear-gradient(135deg, transparent 49.3%, rgba(255,255,255,0.14) 50%, transparent 50.7%),
+      linear-gradient(-135deg, transparent 49.3%, rgba(255,255,255,0.14) 50%, transparent 50.7%);
+    background-size:100% 62%, 100% 62%;
+    background-position: top, top;
+    background-repeat:no-repeat;
+  }
+  .envelope-flap{
+    position:absolute; top:0; left:0; right:0; height:62%;
+    background:linear-gradient(135deg, #a259e6, var(--violet));
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    transform-origin: top center;
+    transition: transform .7s cubic-bezier(.65,-0.15,.35,1.3);
+    z-index:3;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  }
+  .envelope-wrap.open .envelope-flap{ transform: rotateX(180deg); }
+
+  .seal{
+    position:absolute; top:38%; left:50%; transform:translate(-50%,-50%);
+    width:54px; height:54px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #ffe08a, var(--gold) 60%, #c9931f);
+    display:flex; align-items:center; justify-content:center; font-size:24px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.35); z-index:4;
+    transition: opacity .35s ease, transform .35s ease;
+  }
+  .envelope-wrap.open .seal{ opacity:0; transform:translate(-50%,-50%) scale(0.4); }
+
+  .card-peek{
+    position:absolute; left:6%; right:6%; bottom:6%; height:70%;
+    background:var(--paper); border-radius:8px; z-index:1;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+
+  /* ============ CONTENIDO PRINCIPAL (scrollable) ============ */
+  .invite-content{
+    max-width:480px;
+    margin:0 auto;
+    padding:38px 20px 60px;
+    opacity:0;
+    transform:translateY(24px);
+    transition:opacity .7s ease, transform .7s ease;
+  }
+  .invite-content.show{ opacity:1; transform:translateY(0); }
+
+  .floaters{ position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
+
+  section{ position:relative; z-index:1; margin-bottom:34px; }
+
+  .invite-badge{
+    display:inline-flex; align-items:center; gap:6px;
+    background:linear-gradient(90deg, var(--magenta), var(--violet));
+    color:#fff; font-family:'Baloo 2', sans-serif; font-weight:700; font-size:13px;
+    padding:6px 16px; border-radius:999px; margin-bottom:14px;
+    box-shadow:0 4px 10px rgba(109,40,217,0.35);
+  }
+
+  .hero{ text-align:center; }
+  .hero h1{
+    font-family:'Baloo 2', sans-serif; font-weight:800;
+    font-size:clamp(28px, 8vw, 38px); line-height:1.15; margin:0 0 8px;
+    background:linear-gradient(90deg, #d8b4fe, var(--magenta) 55%, var(--teal));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .hero .subtitle{ font-size:15px; color:#d9c8f0; margin:0; }
+
+  .divider{
+    width:56px; height:4px; margin:22px auto; border-radius:4px;
+    background:linear-gradient(90deg, var(--gold), var(--magenta));
+  }
+
+  /* --- tarjeta blanca de detalles --- */
+  .panel{
+    background: linear-gradient(180deg, var(--paper), #f4e9ff);
+    border-radius:22px; padding:26px 22px;
+    box-shadow: 0 20px 45px rgba(0,0,0,0.35), 0 0 0 3px rgba(247,201,72,0.4);
+    color:var(--ink);
+  }
+
+  .detail{
+    display:flex; align-items:center; gap:14px; text-align:left;
+    padding:12px 4px; border-bottom:1px dashed #e3d3f7;
+  }
+  .detail:last-of-type{ border-bottom:none; }
+  .detail .icon{
+    flex:0 0 42px; width:42px; height:42px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff;
+  }
+  .icon.date{ background:linear-gradient(135deg, var(--magenta), #c2185b); }
+  .icon.place{ background:linear-gradient(135deg, var(--teal), #0d8b83); }
+  .icon.time{ background:linear-gradient(135deg, var(--gold), #d99a1c); }
+  .detail .label{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:#9a86bb; margin:0 0 2px; }
+  .detail .value{ font-family:'Baloo 2', sans-serif; font-weight:700; font-size:16px; color:var(--ink); margin:0; }
+
+  /* --- cuenta regresiva --- */
+  .countdown-title{
+    text-align:center; font-family:'Baloo 2', sans-serif; font-weight:700;
+    font-size:15px; color:#e7d9fb; margin:0 0 16px; letter-spacing:.02em;
+  }
+  .countdown{ display:flex; justify-content:center; gap:10px; }
+  .countdown .unit{
+    width:70px; padding:14px 0 10px;
+    background:linear-gradient(160deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02));
+    border:1px solid rgba(247,201,72,0.35);
+    border-radius:14px; text-align:center;
+    box-shadow:0 8px 20px rgba(0,0,0,0.3), inset 0 0 12px rgba(247,201,72,0.08);
+  }
+  .countdown .num{
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:26px;
+    background:linear-gradient(180deg, #fff, var(--gold));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    display:block; line-height:1;
+  }
+  .countdown .unit-label{ font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#c9b7e6; margin-top:6px; display:block; }
+
+  /* --- sección juegos y sorpresas --- */
+  .section-title{
+    text-align:center; font-family:'Baloo 2', sans-serif; font-weight:800;
+    font-size:22px; margin:0 0 6px;
+    color:#fff;
+  }
+  .section-sub{ text-align:center; font-size:13.5px; color:#cbb8e8; margin:0 0 20px; }
+
+  .flip-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:14px;
+  }
+  .flip-card{
+    perspective:1000px; height:140px;
+  }
+  .flip-inner{
+    position:relative; width:100%; height:100%;
+    transition:transform .6s cubic-bezier(.2,.8,.3,1.1);
+    transform-style:preserve-3d;
+    cursor:pointer;
+  }
+  .flip-card.flipped .flip-inner{ transform:rotateY(180deg); }
+  .flip-front, .flip-back{
+    position:absolute; inset:0; border-radius:16px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    backface-visibility:hidden; padding:12px; text-align:center;
+  }
+  .flip-front{
+    background:linear-gradient(160deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03));
+    border:1px solid rgba(255,255,255,0.18);
+  }
+  .flip-front .emoji{ font-size:32px; margin-bottom:8px; filter:drop-shadow(0 0 8px rgba(247,201,72,0.5)); }
+  .flip-front .title{ font-family:'Baloo 2', sans-serif; font-weight:700; font-size:14px; color:#fff; }
+  .flip-front .tap-me{ font-size:10px; color:#b8a3d9; margin-top:4px; }
+  .flip-back{
+    background:linear-gradient(160deg, var(--magenta), var(--violet));
+    transform:rotateY(180deg);
+    font-size:12.5px; line-height:1.4; color:#fff;
+    box-shadow:0 8px 18px rgba(0,0,0,0.3);
+  }
+
+  /* --- RSVP --- */
+  .rsvp-panel{ text-align:center; }
+  .rsvp-btn{
+    display:inline-block; margin-top:6px; padding:13px 30px; border-radius:999px;
+    background:linear-gradient(90deg, var(--violet), var(--magenta));
+    color:#fff; font-family:'Baloo 2', sans-serif; font-weight:700; font-size:15px;
+    text-decoration:none; box-shadow:0 8px 20px rgba(232,65,155,0.45);
+  }
+
+  footer.signoff{ text-align:center; font-size:13px; color:#b8a3d9; margin-top:10px; }
+  footer.signoff strong{ color:var(--magenta); }
+
+  .confetti{ position:fixed; top:-10px; width:8px; height:14px; opacity:0; z-index:150; }
+
+  .sparkle-float{
+    position:absolute; font-size:14px; opacity:.55;
+    animation: floatUp linear infinite;
+  }
+  @keyframes floatUp{
+    0%{ transform:translateY(0) rotate(0deg); opacity:0; }
+    10%{ opacity:.7; }
+    90%{ opacity:.5; }
+    100%{ transform:translateY(-100vh) rotate(200deg); opacity:0; }
+  }
+</style>
+</head>
+<body class="locked">
+
+<div class="envelope-screen" id="envelopeScreen">
+  <div class="stars" id="stars"></div>
+  <div class="envelope-wrap" id="envelopeWrap">
+    <div class="envelope-flap"></div>
+    <div class="card-peek"></div>
+    <div class="envelope"></div>
+    <div class="seal">✨</div>
+    <div class="tap-hint">Toca el sobre para abrir</div>
+  </div>
+</div>
+
+<div class="floaters" id="floaters"></div>
+
+<div class="invite-content" id="inviteContent">
+
+  <section class="hero">
+    <span class="invite-badge">✨ ¡Estás invitada! ✨</span>
+    <h1>El cumpleaños mágico<br>de Camila</h1>
+    <p class="subtitle">Una noche de magia, estrellas y mucha diversión</p>
+  </section>
+
+  <section class="panel">
+    <div class="detail">
+      <div class="icon date">📅</div>
+      <div><p class="label">Fecha</p><p class="value">Sábado 27 de diciembre</p></div>
+    </div>
+    <div class="detail">
+      <div class="icon place">📍</div>
+      <div><p class="label">Lugar</p><p class="value">Puerto Vallarta · Playa del Holi</p></div>
+    </div>
+    <div class="detail">
+      <div class="icon time">🕔</div>
+      <div><p class="label">Hora</p><p class="value">5:00 pm</p></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="countdown-title">Faltan solo...</p>
+    <div class="countdown">
+      <div class="unit"><span class="num" id="cd-days">--</span><span class="unit-label">días</span></div>
+      <div class="unit"><span class="num" id="cd-hours">--</span><span class="unit-label">hrs</span></div>
+      <div class="unit"><span class="num" id="cd-mins">--</span><span class="unit-label">min</span></div>
+      <div class="unit"><span class="num" id="cd-secs">--</span><span class="unit-label">seg</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title">Habrá juegos y sorpresas 🎉</h2>
+    <p class="section-sub">Toca cada carta para descubrir qué te espera</p>
+    <div class="flip-grid">
+
+      <div class="flip-card" data-card>
+        <div class="flip-inner">
+          <div class="flip-front">
+            <div class="emoji">🎮</div>
+            <div class="title">Juegos mágicos</div>
+            <div class="tap-me">toca aquí</div>
+          </div>
+          <div class="flip-back">Retos y juegos temáticos con premios para todas las invitadas ✨</div>
+        </div>
+      </div>
+
+      <div class="flip-card" data-card>
+        <div class="flip-inner">
+          <div class="flip-front">
+            <div class="emoji">🎁</div>
+            <div class="title">Sorpresas</div>
+            <div class="tap-me">toca aquí</div>
+          </div>
+          <div class="flip-back">Sorpresas especiales durante toda la tarde... ¡algunas hasta brillan! 💫</div>
+        </div>
+      </div>
+
+      <div class="flip-card" data-card>
+        <div class="flip-inner">
+          <div class="flip-front">
+            <div class="emoji">🍬</div>
+            <div class="title">Dulces &amp; piñata</div>
+            <div class="tap-me">toca aquí</div>
+          </div>
+          <div class="flip-back">Mesa de dulces y piñata mágica para llevarte un poco de magia a casa</div>
+        </div>
+      </div>
+
+      <div class="flip-card" data-card>
+        <div class="flip-inner">
+          <div class="flip-front">
+            <div class="emoji">📸</div>
+            <div class="title">Cabina de fotos</div>
+            <div class="tap-me">toca aquí</div>
+          </div>
+          <div class="flip-back">Cabina temática con accesorios brillantes para el recuerdo perfecto</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="panel rsvp-panel">
+    <p class="label" style="color:#9a86bb; font-size:12px; text-transform:uppercase; letter-spacing:.06em; margin:0 0 6px;">Confirma tu magia</p>
+    <p style="margin:0 0 4px; color:var(--ink); font-size:14px;">Avísanos si nos acompañarás</p>
+    <a class="rsvp-btn" href="https://wa.me/?text=%C2%A1Confirmo%20mi%20asistencia!" target="_blank" rel="noopener">Confirmar asistencia</a>
+  </section>
+
+  <footer class="signoff">Con cariño, <strong>familia anfitriona</strong></footer>
+
+</div>
+
+<script>
+  /* ---------- estrellas del sobre ---------- */
+  const starsWrap = document.getElementById('stars');
+  const starChars = ['★','✦','✧'];
+  const colors = ['', 'pink', 'teal'];
+  for(let i=0;i<22;i++){
+    const s = document.createElement('span');
+    s.className = 'star ' + colors[Math.floor(Math.random()*colors.length)];
+    s.textContent = starChars[Math.floor(Math.random()*starChars.length)];
+    s.style.left = Math.random()*100 + '%';
+    s.style.top = Math.random()*100 + '%';
+    s.style.fontSize = (10 + Math.random()*18) + 'px';
+    s.style.animationDelay = (Math.random()*2.6) + 's';
+    starsWrap.appendChild(s);
+  }
+
+  /* ---------- destellos flotantes de fondo (permanentes) ---------- */
+  const floaters = document.getElementById('floaters');
+  const floatChars = ['✦','★','✧','⋆'];
+  for(let i=0;i<16;i++){
+    const f = document.createElement('span');
+    f.className = 'sparkle-float';
+    f.textContent = floatChars[Math.floor(Math.random()*floatChars.length)];
+    f.style.left = Math.random()*100 + '%';
+    f.style.bottom = (Math.random()*20 - 20) + 'vh';
+    f.style.color = ['#f7c948','#e8419b','#1fb6ac'][Math.floor(Math.random()*3)];
+    const dur = 10 + Math.random()*14;
+    f.style.animationDuration = dur + 's';
+    f.style.animationDelay = (Math.random()*dur) + 's';
+    floaters.appendChild(f);
+  }
+
+  /* ---------- abrir sobre ---------- */
+  const wrap = document.getElementById('envelopeWrap');
+  const envelopeScreen = document.getElementById('envelopeScreen');
+  const inviteContent = document.getElementById('inviteContent');
+  let opened = false;
+
+  function launchConfetti(){
+    const colorsList = ['#e8419b','#f7c948','#1fb6ac','#6d28d9'];
+    for(let i=0;i<28;i++){
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = Math.random()*100 + '%';
+      c.style.background = colorsList[Math.floor(Math.random()*colorsList.length)];
+      c.style.borderRadius = Math.random()>0.5 ? '50%' : '2px';
+      document.body.appendChild(c);
+      const duration = 1600 + Math.random()*900;
+      const drift = (Math.random()-0.5)*160;
+      c.animate([
+        { transform:'translate(0,0) rotate(0deg)', opacity:1 },
+        { transform:`translate(${drift}px, 100vh) rotate(${360+Math.random()*360}deg)`, opacity:0.9 }
+      ], { duration, easing:'ease-in', fill:'forwards', delay: Math.random()*300 });
+      setTimeout(()=>c.remove(), duration+400);
+    }
+  }
+
+  wrap.addEventListener('click', () => {
+    if(opened) return;
+    opened = true;
+    wrap.classList.add('open');
+    launchConfetti();
+    setTimeout(() => {
+      wrap.classList.add('opened');
+      envelopeScreen.classList.add('fade-out');
+      document.body.classList.remove('locked');
+      inviteContent.classList.add('show');
+    }, 480);
+    setTimeout(() => { envelopeScreen.style.display='none'; }, 1100);
+  });
+
+  /* ---------- cuenta regresiva ---------- */
+  const targetDate = new Date('2026-12-27T17:00:00-06:00').getTime();
+  function updateCountdown(){
+    const now = Date.now();
+    let diff = targetDate - now;
+    if(diff < 0) diff = 0;
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    document.getElementById('cd-days').textContent = days;
+    document.getElementById('cd-hours').textContent = String(hours).padStart(2,'0');
+    document.getElementById('cd-mins').textContent = String(mins).padStart(2,'0');
+    document.getElementById('cd-secs').textContent = String(secs).padStart(2,'0');
+  }
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
+
+  /* ---------- tarjetas volteables ---------- */
+  document.querySelectorAll('[data-card]').forEach(card => {
+    card.addEventListener('click', () => card.classList.toggle('flipped'));
+  });
+</script>
+
+</body>
+</html>
